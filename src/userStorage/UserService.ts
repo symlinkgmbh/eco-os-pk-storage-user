@@ -18,11 +18,12 @@
 
 
 import { STORAGE_TYPES, storageContainer, StaticQueryProtector } from "@symlinkde/eco-os-pk-storage";
-import { bootstrapperContainer } from "@symlinkde/eco-os-pk-core";
+import { bootstrapperContainer, injectFederationKeyClient } from "@symlinkde/eco-os-pk-core";
 import Config from "config";
 import { User } from "./User";
 import { PkStroageUser, PkStorage, MsUser } from "@symlinkde/eco-os-pk-models";
 import { injectable } from "inversify";
+import { IApiKey } from "@symlinkde/eco-os-pk-models/lib/models/services/ms_user/IApiKey";
 
 @injectable()
 export class UserService implements PkStroageUser.IUserService {
@@ -148,20 +149,38 @@ export class UserService implements PkStroageUser.IUserService {
 
   public async loadUserByApiKey(apiKey: string): Promise<MsUser.IUser | null> {
     const result = await this.userRepro.find({
-      apiKeys: { $all: [apiKey] },
+      "apiKeys.key": apiKey,
     });
 
     if (result === null) {
       return null;
     }
 
+    if (result.length > 0) {
+      result[0].apiKeys.map((apikeyObject: any) => {
+        if (apikeyObject.key === apiKey) {
+          if (
+            apikeyObject.expireDate !== undefined &&
+            apikeyObject.expireDate !== null &&
+            new Date(apikeyObject.expireDate) < new Date()
+          ) {
+            throw new Error("apikey expire execption");
+          }
+        }
+      });
+    }
+
     return result[0];
   }
 
-  public async addApiKeyToUser(id: string, key: string): Promise<MsUser.IUser | null> {
+  public async addApiKeyToUser(id: string, key: IApiKey): Promise<MsUser.IUser | null> {
     const result = await this.userRepro.findOne(id);
     if (result === null) {
       return result;
+    }
+
+    if (key.expireDate !== undefined && key.expireDate !== null) {
+      key.expireDate = new Date(key.expireDate);
     }
 
     if (result.apiKeys === undefined) {
@@ -178,7 +197,7 @@ export class UserService implements PkStroageUser.IUserService {
     return result;
   }
 
-  public async removeApiKeyFromUser(id: string, key: string): Promise<MsUser.IUser | null> {
+  public async removeApiKeyFromUser(id: string, apiKey: string): Promise<MsUser.IUser | null> {
     const result = await this.userRepro.findOne(id);
     if (result === null) {
       return result;
@@ -188,9 +207,9 @@ export class UserService implements PkStroageUser.IUserService {
       return result;
     }
 
-    const apiKeys = [...result.apiKeys];
+    const apiKeys: Array<any> = [...result.apiKeys];
     for (const index in apiKeys) {
-      if (apiKeys[index] === key) {
+      if (apiKeys[index].key === apiKey) {
         apiKeys.splice(Number(index), 1);
       }
     }
@@ -208,5 +227,65 @@ export class UserService implements PkStroageUser.IUserService {
     result.apiKeys = [];
     await this.userRepro.update(id, result);
     return true;
+  }
+
+  public async addAliasToUser(id: string, alias: string): Promise<MsUser.IUser | null> {
+    const result = await this.userRepro.findOne(id);
+    if (result === null) {
+      return result;
+    }
+
+    if (result.alias === undefined) {
+      result.alias = [alias];
+      await this.userRepro.update(id, result);
+      return result;
+    }
+
+    const aliases = [...result.alias];
+    for (const i in aliases) {
+      if (aliases[i] === alias) {
+        return result;
+      }
+    }
+
+    aliases.push(alias);
+    result.alias = aliases;
+
+    await this.userRepro.update(id, result);
+    return result;
+  }
+
+  public async loadUserByAlias(alias: string): Promise<MsUser.IUser | null> {
+    const result = await this.userRepro.find({
+      alias,
+    });
+
+    if (result === null) {
+      return null;
+    }
+
+    return result[0];
+  }
+
+  public async removeAliasFromUser(id: string, alias: string): Promise<MsUser.IUser | null> {
+    const result = await this.userRepro.findOne(id);
+    if (result === null) {
+      return result;
+    }
+
+    if (result.alias === undefined) {
+      return result;
+    }
+
+    const aliases: Array<string> = [...result.alias];
+    for (const index in aliases) {
+      if (aliases[index] === alias) {
+        aliases.splice(Number(index), 1);
+      }
+    }
+
+    result.alias = aliases;
+    await this.userRepro.update(id, result);
+    return result;
   }
 }

@@ -18,6 +18,7 @@
 
 
 import { MsUser } from "@symlinkde/eco-os-pk-models";
+import { IApiKey } from "@symlinkde/eco-os-pk-models/lib/models/services/ms_user/IApiKey";
 
 export class User implements MsUser.IUser {
   public email: string;
@@ -32,9 +33,11 @@ export class User implements MsUser.IUser {
   public deleteId: string;
   public otp: string | null;
   public lastPasswordHash: string | null;
-  public apiKeys: Array<string>;
+  public apiKeys: Array<IApiKey>;
   public hasEulaAccepted: boolean;
+  public alias?: Array<string>;
 
+  // tslint:disable-next-line:cyclomatic-complexity
   constructor(user: MsUser.IUser) {
     this.email = user.email;
     this.password = user.password;
@@ -50,6 +53,7 @@ export class User implements MsUser.IUser {
     this.lastPasswordHash = user.lastPasswordHash === undefined ? null : user.lastPasswordHash;
     this.apiKeys = user.apiKeys === undefined ? [] : user.apiKeys;
     this.hasEulaAccepted = user.hasEulaAccepted === undefined ? false : user.hasEulaAccepted;
+    this.alias = user.alias === undefined ? [] : user.alias;
   }
 
   public getEmail(): string {
