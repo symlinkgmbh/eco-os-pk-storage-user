@@ -17,8 +17,8 @@
 
 
 
-import { STORAGE_TYPES, storageContainer, StaticQueryProtector } from "@symlinkde/eco-os-pk-storage";
-import { bootstrapperContainer, injectFederationKeyClient } from "@symlinkde/eco-os-pk-core";
+import { STORAGE_TYPES, storageContainer, StaticQueryProtector, AbstractBindings } from "@symlinkde/eco-os-pk-storage";
+import { bootstrapperContainer } from "@symlinkde/eco-os-pk-core";
 import Config from "config";
 import { User } from "./User";
 import { PkStroageUser, PkStorage, MsUser } from "@symlinkde/eco-os-pk-models";
@@ -26,17 +26,23 @@ import { injectable } from "inversify";
 import { IApiKey } from "@symlinkde/eco-os-pk-models/lib/models/services/ms_user/IApiKey";
 
 @injectable()
-export class UserService implements PkStroageUser.IUserService {
+export class UserService extends AbstractBindings implements PkStroageUser.IUserService {
   private userRepro: PkStorage.IMongoRepository<User>;
 
   public constructor() {
-    storageContainer.bind(STORAGE_TYPES.Collection).toConstantValue(Config.get("mongo.collection"));
-    storageContainer.bind(STORAGE_TYPES.Database).toConstantValue(Config.get("mongo.db"));
-    storageContainer.bind(STORAGE_TYPES.StorageTarget).toConstantValue("SECONDLOCK_MONGO_USER_DATA");
-    storageContainer
-      .bind(STORAGE_TYPES.SECONDLOCK_REGISTRY_URI)
-      .toConstantValue(bootstrapperContainer.get("SECONDLOCK_REGISTRY_URI"));
-    this.userRepro = storageContainer.getTagged<PkStorage.IMongoRepository<User>>(
+    super(storageContainer);
+
+    this.initDynamicBinding(
+      [STORAGE_TYPES.Database, STORAGE_TYPES.Collection, STORAGE_TYPES.StorageTarget],
+      [Config.get("mongo.db"), Config.get("mongo.collection"), "SECONDLOCK_MONGO_USER_DATA"],
+    );
+
+    this.initStaticBinding(
+      [STORAGE_TYPES.SECONDLOCK_REGISTRY_URI],
+      [bootstrapperContainer.get("SECONDLOCK_REGISTRY_URI")],
+    );
+
+    this.userRepro = this.getContainer().getTagged<PkStorage.IMongoRepository<User>>(
       STORAGE_TYPES.IMongoRepository,
       STORAGE_TYPES.STATE_LESS,
       false,

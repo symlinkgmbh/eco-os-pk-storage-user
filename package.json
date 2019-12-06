@@ -1,6 +1,6 @@
 {
   "name": "@symlinkde/eco-os-pk-storage-user",
-  "version": "0.0.43",
+  "version": "0.0.48",
   "description": "Package containing storage adapter for user service.",
   "types": "lib/index.d.ts",
   "main": "lib/index.js",
